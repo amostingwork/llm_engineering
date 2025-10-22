@@ -50,11 +50,13 @@ def filter_relevant_articles(
         "Return only a JSON object in this format:\n"
         "{\n"
         '  "relevant_articles": [\n'
-        '    {"title": "...", "reason_and_summary": "...", "link": "...", "relevance_score": 0.0}\n'
+        '    {"title": "...", "article_summary": "...", "link": "...", "relevance_score": 0.0, "reason_for_relevance_score": "..."}\n'
         "  ]\n"
         "}\n"
+        "Include the title of the article, summary of the article, the link, the relevance score you give to the article and the reason why you gave the relevance score in the JSON object.\n"
         "Only include articles with relevance_score >= 6.0.\n"
         "Use 1 decimal place for the score.\n"
+        "I want you to follow the above instructions exactly, do not deviate.\n"
     )
 
     # Step 3: Call the model

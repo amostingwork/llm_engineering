@@ -1,10 +1,11 @@
 import scraper # scraper.py
 import filter # filter.py
+import display_data # display_data.py
 
 def main():
     all_posts = scraper.fetch_all_feeds("week1/personalised-newsfeed/tech_blogs.json")
 
-    PER_BLOG_LIMIT = 3  # Adjust this number as needed
+    PER_BLOG_LIMIT = 20  # Adjust this number as needed
     for blog_name in all_posts:
         all_posts[blog_name] = all_posts[blog_name][:PER_BLOG_LIMIT]
 
@@ -27,7 +28,7 @@ def main():
     
     # Prompts for filtering
     system_prompt = """
-        You are my personal assistant who knows that I am very interested in catching up with the latest tech news.
+        You are a senior software developer who is very interested and developing my skills and knows that I am very interested in catching up with the latest tech news.
         Return only valid JSON exactly in the requested schema.
     """
 
@@ -35,7 +36,7 @@ def main():
         I am a junior software engineer who is very interested in keeping up with the latest tech trends and also learn new skills that I do not have.
         My company currently requires me to code in C# for backend and Typescript for frontend.
         I am interested in the latest AI developments, system design, software design and software development life cycle. 
-        Help me to sieve through the websites that I have provided and give me a summary of the learnings from these articles. 
+        Help me to sieve through the blogs and the summaries that I have provided and identify articles that will be helpful for me.
     """
     print("Getting relevant articles...")
     # Get relevant articles
@@ -45,10 +46,9 @@ def main():
         user_prompt=user_prompt
     ) 
 
-    print("\n🧭 Relevant Articles")
-    print("=" * 80)
-    for a in relevant_articles:
-        print(f"- [{a.get('title','Untitled')}]({a.get('link','')}) — score: {a.get('relevance_score','?')}")
+    # After getting relevant_articles
+    markdown_file = display_data.create_markdown_file(relevant_articles, "week1/personalised-newsfeed/relevant_articles.md")
+    display_data.display_articles_summary(relevant_articles)
 
 if __name__ == "__main__":
     main()
