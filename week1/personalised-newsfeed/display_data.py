@@ -1,7 +1,7 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
-
+from config_manager import Config
 
 """
 Creates a markdown file from the relevant_articles variable.
@@ -14,15 +14,20 @@ Args:
         - relevance_score: Numeric score (0-10)
         - reason_for_relevance_score: Explanation for the relevance score
     filename: Optional custom filename. If None, generates timestamp-based name.
+    config: Configuration object containing output settings
 
 Returns:
     The filename of the created markdown file.
 """
-def create_markdown_file(relevant_articles: List[Dict[str, Any]], filename: str = None) -> str:
+def create_markdown_file(relevant_articles: List[Dict[str, Any]], filename: str = None, config: Optional[Config] = None) -> str:
+    
     # Generate filename if not provided
     if filename is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"relevant_articles_{timestamp}.md"
+        if config and config.output.include_timestamp:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"relevant_articles_{timestamp}.md"
+        else:
+            filename = "relevant_articles.md"
     
     # Ensure filename has .md extension
     if not filename.endswith('.md'):
@@ -34,13 +39,19 @@ def create_markdown_file(relevant_articles: List[Dict[str, Any]], filename: str 
     # Header
     markdown_content.append("# Relevant Tech Articles")
     markdown_content.append("")
-    markdown_content.append(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-    markdown_content.append("")
+    
+    if config and config.output.include_timestamp:
+        markdown_content.append(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        markdown_content.append("")
+    
     markdown_content.append(f"**Total Articles:** {len(relevant_articles)}")
     markdown_content.append("")
     
-    # Sort articles by relevance score (highest first)
-    sorted_articles = sorted(relevant_articles, key=lambda x: x.get('relevance_score', 0), reverse=True)
+    # Sort articles by relevance score if configured
+    if config and config.output.sort_by_score:
+        sorted_articles = sorted(relevant_articles, key=lambda x: x.get('relevance_score', 0), reverse=True)
+    else:
+        sorted_articles = relevant_articles
     
     # Articles section
     markdown_content.append("## Articles")
@@ -52,6 +63,12 @@ def create_markdown_file(relevant_articles: List[Dict[str, Any]], filename: str 
         article_summary = article.get('article_summary', 'No summary available')
         reason_for_score = article.get('reason_for_relevance_score', 'No reason provided')
         score = article.get('relevance_score', 'N/A')
+        
+        # Truncate summary if configured
+        if config and config.output.max_summary_length > 0:
+            max_length = config.output.max_summary_length
+            if len(article_summary) > max_length:
+                article_summary = article_summary[:max_length] + "..."
         
         markdown_content.append(f"### {i}. {title}")
         markdown_content.append("")
@@ -96,8 +113,10 @@ Displays a summary of relevant articles in the console.
 
 Args:
     relevant_articles: List of article dictionaries
+    config: Configuration object containing output settings
 """
-def display_articles_summary(relevant_articles: List[Dict[str, Any]]) -> None:
+def display_articles_summary(relevant_articles: List[Dict[str, Any]], config: Optional[Config] = None) -> None:
+    
     if not relevant_articles:
         print("No relevant articles found.")
         return
@@ -105,15 +124,23 @@ def display_articles_summary(relevant_articles: List[Dict[str, Any]]) -> None:
     print(f"\n📋 Found {len(relevant_articles)} relevant articles:")
     print("=" * 60)
     
-    # Sort by relevance score
-    sorted_articles = sorted(relevant_articles, key=lambda x: x.get('relevance_score', 0), reverse=True)
+    # Sort by relevance score if configured
+    if config and config.output.sort_by_score:
+        sorted_articles = sorted(relevant_articles, key=lambda x: x.get('relevance_score', 0), reverse=True)
+    else:
+        sorted_articles = relevant_articles
     
     for i, article in enumerate(sorted_articles, 1):
         title = article.get('title', 'Untitled')
         score = article.get('relevance_score', 'N/A')
         link = article.get('link', '')
         
-        print(f"\n{i}. {title}")
+        # Truncate title if too long
+        display_title = title
+        if len(display_title) > 60:
+            display_title = display_title[:57] + "..."
+        
+        print(f"\n{i}. {display_title}")
         print(f"   Score: {score}/10")
         if link:
             print(f"   Link: {link}")

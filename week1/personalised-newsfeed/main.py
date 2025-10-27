@@ -1,13 +1,21 @@
 import scraper # scraper.py
 import filter # filter.py
 import display_data # display_data.py
+from config_manager import config_manager, get_config
 
 def main():
-    all_posts = scraper.fetch_all_feeds("week1/personalised-newsfeed/tech_blogs.json")
+    # Load configuration
+    config = get_config()
+    
+    print("Starting personalised newsfeed application")
+    
+    # Fetch posts from tech blogs using configuration
+    all_posts = scraper.fetch_all_feeds(config)
 
-    PER_BLOG_LIMIT = 20  # Adjust this number as needed
+    # Apply per-blog limit from configuration
+    per_blog_limit = config.scraping.per_blog_limit
     for blog_name in all_posts:
-        all_posts[blog_name] = all_posts[blog_name][:PER_BLOG_LIMIT]
+        all_posts[blog_name] = all_posts[blog_name][:per_blog_limit]
 
     # Display results
     total_posts = sum(len(posts) for posts in all_posts.values())
@@ -26,29 +34,33 @@ def main():
             print(f"Summary snippet: {post['summary'][:150]}...")
             print(f"Tags: {post['tags']}")
     
-    # Prompts for filtering
-    system_prompt = """
-        You are a senior software developer who is very interested and developing my skills and knows that I am very interested in catching up with the latest tech news.
-        Return only valid JSON exactly in the requested schema.
-    """
-
-    user_prompt = """
-        I am a junior software engineer who is very interested in keeping up with the latest tech trends and also learn new skills that I do not have.
-        My company currently requires me to code in C# for backend and Typescript for frontend.
-        I am interested in the latest AI developments, system design, software design and software development life cycle. 
-        Help me to sieve through the blogs and the summaries that I have provided and identify articles that will be helpful for me.
-    """
+    # Get prompts from configuration
+    system_prompt = config.prompts.system_prompt
+    user_prompt = config.prompts.user_prompt
+    
     print("Getting relevant articles...")
+    
     # Get relevant articles
     relevant_articles = filter.filter_relevant_articles(
         posts=all_posts,
         system_prompt=system_prompt,
-        user_prompt=user_prompt
+        user_prompt=user_prompt,
+        config=config
     ) 
 
+    # Create output directory if it doesn't exist
+    output_dir = config.output.output_directory
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate output file path
+    output_filename = os.path.join(output_dir, config.output.markdown_filename)
+    
     # After getting relevant_articles
-    markdown_file = display_data.create_markdown_file(relevant_articles, "week1/personalised-newsfeed/relevant_articles.md")
-    display_data.display_articles_summary(relevant_articles)
+    markdown_file = display_data.create_markdown_file(relevant_articles, output_filename, config)
+    display_data.display_articles_summary(relevant_articles, config)
+    
+    print(f"Application completed successfully. Generated {len(relevant_articles)} relevant articles.")
 
 if __name__ == "__main__":
     main()

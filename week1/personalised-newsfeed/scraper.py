@@ -1,101 +1,120 @@
 import feedparser
 import json
+import time
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from config_manager import Config
 
 """
-Load tech blog URLs from JSON file.
+Load tech blog URLs from configuration.
 
 Args:
-    json_file: Path to the JSON file containing blog URLs
+    config: Configuration object containing tech blogs
     
 Returns:
     Dictionary mapping blog names to RSS feed URLs
 """
-def load_tech_blogs(json_file: str = "tech_blogs.json") -> Dict[str, str]:
+def load_tech_blogs(config: Config) -> Dict[str, str]:
     try:
-        with open(json_file, 'r') as f:
-            blogs = json.load(f)
-        print(f"✅ Loaded {len(blogs)} tech blogs from {json_file}")
+        blogs = config.tech_blogs.blogs
+        print(f"✅ Loaded {len(blogs)} tech blogs from configuration")
         return blogs
-    except FileNotFoundError:
-        print(f"❌ Error: {json_file} not found")
-        return {}
-    except json.JSONDecodeError as e:
-        print(f"❌ Error parsing JSON: {e}")
+    except Exception as e:
+        print(f"❌ Error loading tech blogs from config: {e}")
         return {}
 
 """
-Fetch posts from all tech blogs in the JSON file.
+Fetch posts from all tech blogs in the configuration.
 
 Args:
-    json_file: Path to the JSON file containing blog URLs
+    config: Configuration object containing scraping settings and tech blogs
     
 Returns:
     Dictionary mapping blog names to lists of posts
 """
-def fetch_all_feeds(json_file: str = "tech_blogs.json") -> Dict[str, List[Dict[str, Any]]]:
-    blogs = load_tech_blogs(json_file)
+def fetch_all_feeds(config: Config) -> Dict[str, List[Dict[str, Any]]]:
+    blogs = load_tech_blogs(config)
     all_posts = {}
     
     for blog_name, feed_url in blogs.items():
         print(f"\n📰 Fetching posts from {blog_name}...")
-        try:
-            posts = fetch_feed(feed_url)
-            all_posts[blog_name] = posts
-        except Exception as e:
-            print(f"❌ Error fetching {blog_name}: {e}")
-            all_posts[blog_name] = []
+        
+        # Retry logic based on configuration
+        retry_attempts = config.scraping.retry_attempts
+        retry_delay = config.scraping.retry_delay
+        
+        for attempt in range(retry_attempts):
+            try:
+                posts = fetch_feed(feed_url, config)
+                all_posts[blog_name] = posts
+                break
+            except Exception as e:
+                if attempt < retry_attempts - 1:
+                    print(f"⚠️ Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print(f"❌ Error fetching {blog_name}: {e}")
+                    all_posts[blog_name] = []
     
     return all_posts
 
 """
 Fetches and parses the RSS feed from the given URL.
 
+Args:
+    url: RSS feed URL
+    config: Configuration object containing scraping settings
+
 Returns:
     A list of dictionaries, each representing one post.
 """
-def fetch_feed(url: str) -> List[Dict[str, Any]]:
+def fetch_feed(url: str, config: Optional[Config] = None) -> List[Dict[str, Any]]:
     print(f"Fetching feed from: {url}")
-    feed = feedparser.parse(url)
+    
+    try:
+        feed = feedparser.parse(url)
 
-    if feed.bozo:  # bozo == True means a parsing error occurred
-        print(f"⚠️ Warning: Feed parsing error: {feed.bozo_exception}")
+        if feed.bozo:  # bozo == True means a parsing error occurred
+            print(f"⚠️ Warning: Feed parsing error: {feed.bozo_exception}")
 
-    posts = []
-    for entry in feed.entries:
-        # Extract relevant fields
-        post = {
-            "title": entry.get("title"),
-            "link": entry.get("link"),
-            "published": entry.get("published", None),
-            "summary": entry.get("summary", None),
-            # Optionally extract other metadata if available
-            "author": entry.get("author", None),
-            "tags": [t["term"] for t in entry.get("tags", [])] if "tags" in entry else [],
-        }
-        posts.append(post)
+        posts = []
+        for entry in feed.entries:
+            # Extract relevant fields
+            post = {
+                "title": entry.get("title"),
+                "link": entry.get("link"),
+                "published": entry.get("published", None),
+                "summary": entry.get("summary", None),
+                # Optionally extract other metadata if available
+                "author": entry.get("author", None),
+                "tags": [t["term"] for t in entry.get("tags", [])] if "tags" in entry else [],
+            }
+            posts.append(post)
 
-    print(f"✅ Retrieved {len(posts)} posts.")
-    return posts
+        print(f"✅ Retrieved {len(posts)} posts.")
+        return posts
+        
+    except Exception as e:
+        print(f"❌ Error fetching feed from {url}: {e}")
+        raise
 
 """
 Converts a feed 'published' date string into a datetime object.
 """
 def normalize_date(date_str: str) -> datetime:
-
     try:
         return datetime(*feedparser.parse(date_str).updated_parsed[:6])
     except Exception:
         return None
 
-
-
 """
 Entry point for testing the scraper.
 """
 def main():
-    posts = fetch_all_feeds("tech_blogs.json")
+    from config_manager import get_config
+    
+    config = get_config()
+    posts = fetch_all_feeds(config)
 
     # Display results
     total_posts = sum(len(posts) for posts in posts.values())
