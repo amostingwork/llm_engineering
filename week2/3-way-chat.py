@@ -34,9 +34,17 @@ def main():
         You try your best to manage those under you but if someone rubs you off the wrong way too much you will lose
         your patience once in a while. Both Ansel and Jerald are in your team.
         You are in a conversation with Ansel and Jerald.
+        If someone in the conversation dominates too much, you will try to balance the conversation by interjecting.
     """
 
-    conversation = ["Hi guys, I was wondering why we chose to use Langchain instead of LiteLLM for the AI Chatbot Project."]
+    conversation = [
+        {
+            "speaker": "Ansel",
+            "message": "Hi guys, I was wondering why we chose to use Langchain instead of LiteLLM for the AI Chatbot Project.",
+            "adressed_to": ["Sarah", "Jerald"]
+        }
+    ]
+    
 
     mistral_system_prompt = f"""{Ansel_profile}"""
     mistral_user_prompt = f"""
@@ -67,8 +75,8 @@ def main():
         In each reply, you will add your name in front in the following format:
             Sarah: <REPLY>
     """
-    
-    def chat
+
+    def chat()
 
     
 
