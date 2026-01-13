@@ -1,6 +1,7 @@
 import scraper # scraper.py
 import filter # filter.py
 import display_data # display_data.py
+import ui # ui.py
 from config_manager import config_manager, get_config
 
 def main():
